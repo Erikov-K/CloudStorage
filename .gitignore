@@ -28,3 +28,9 @@ hs_err_pid*
 .project
 .classpath
 target/
+
+# IDEA
+.idea/
+
+# Client/Server storage directory
+*_storage/
