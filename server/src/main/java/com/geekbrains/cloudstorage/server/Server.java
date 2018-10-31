@@ -12,12 +12,31 @@ import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
 
+/**
+ * This class implements simple netty Server.
+ *
+ * @author @FlameXander
+ */
+public final class Server {
 
-public class Server {
-    public Server() {
+    /**
+     * Server class default constructor.
+     */
+    private Server() {
     }
 
-    public void run() throws Exception {
+    /**
+     * Method to start server.
+     *
+     * @throws Exception if there is an issue.
+     */
+    private void run() throws Exception {
+
+        //  Configuration for local variables.
+        final int maxObjectSize = 1024 * 1024;
+        final int soBackLog = 128;
+        final int bindPort = 8189;
+
         EventLoopGroup mainGroup = new NioEventLoopGroup();
         EventLoopGroup workerGroup = new NioEventLoopGroup();
 
@@ -26,18 +45,21 @@ public class Server {
             b.group(mainGroup, workerGroup)
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
-                        protected void initChannel(SocketChannel socketChannel) throws Exception {
+
+                        protected void initChannel(
+                                final SocketChannel socketChannel) {
                             socketChannel.pipeline().addLast(
-                                    new ObjectDecoder(5 * 1024 * 1024, ClassResolvers.cacheDisabled(null)),
+                                    new ObjectDecoder(maxObjectSize,
+                                            ClassResolvers.cacheDisabled(null)),
                                     new ObjectEncoder(),
                                     new MainHandler()
                             );
                         }
                     })
-                    .option(ChannelOption.SO_BACKLOG, 128)
+                    .option(ChannelOption.SO_BACKLOG, soBackLog)
                     .option(ChannelOption.TCP_NODELAY, true)
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
-            ChannelFuture future = b.bind(8189).sync();
+            ChannelFuture future = b.bind(bindPort).sync();
             future.channel().closeFuture().sync();
         } finally {
             mainGroup.shutdownGracefully();
@@ -45,7 +67,13 @@ public class Server {
         }
     }
 
-    public static void main(String[] args) throws Exception {
+    /**
+     * Main method, that launch server.
+     *
+     * @param args String[] of args
+     * @throws Exception if there is an issue.
+     */
+    public static void main(final String[] args) throws Exception {
         new Server().run();
     }
 }

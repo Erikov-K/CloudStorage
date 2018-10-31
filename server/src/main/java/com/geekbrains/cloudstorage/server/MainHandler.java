@@ -1,5 +1,6 @@
 package com.geekbrains.cloudstorage.server;
 
+import com.geekbrains.cloudstorage.common.FileDeleteRequest;
 import com.geekbrains.cloudstorage.common.FileListMessage;
 import com.geekbrains.cloudstorage.common.FileMessage;
 import com.geekbrains.cloudstorage.common.FileRequest;
@@ -14,65 +15,123 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * This class implements netty Server MainHandler.
+ *
+ * @author @FlameXander
+ */
 public class MainHandler extends ChannelInboundHandlerAdapter {
 
+    /**
+     * Method channelRegistered.
+     * Uses for transfer list of client files when client is connected.
+     *
+     * @param ctx ChannelHandlerContext
+     */
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        // обновление сиска файлов на сервере при подключени клиента
+    public void channelRegistered(final ChannelHandlerContext ctx) {
         FileListMessage flm = new FileListMessage(getFilesList());
         ctx.writeAndFlush(flm);
-//        super.channelRegistered(ctx);
     }
 
+    /**
+     * Method channelRead.
+     * Uses for reading any messages from client through network.
+     * Defines client request and run different activities on server-side.
+     *
+     * @param ctx ChannelHandlerContext
+     * @param msg Object
+     * @throws Exception if there is an issue.
+     */
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    public void channelRead(final ChannelHandlerContext ctx,
+                            final Object msg) throws Exception {
         try {
             if (msg == null) {
                 return;
             }
-            // отправка клиенту списка файлов сервера
+
+            // Send list of client files to client
             if (msg instanceof FileListMessage) {
                 FileListMessage flm = new FileListMessage(getFilesList());
                 ctx.writeAndFlush(flm);
             }
 
-            // отправка файла сервером клиенту
+            // Send requested file to client
             if (msg instanceof FileRequest) {
-
                 FileRequest fr = (FileRequest) msg;
-                if (Files.exists(Paths.get("server_storage/" + fr.getFilename()))) {
-                    FileMessage fm = new FileMessage(Paths.get("server_storage/" + fr.getFilename()));
+                if (Files.exists(
+                        Paths.get("server_storage/" + fr.getFilename()))) {
+                    FileMessage fm = new FileMessage(
+                            Paths.get("server_storage/" + fr.getFilename()));
                     ctx.writeAndFlush(fm);
                 }
             }
-            // прием файла сервером
+
+            // Receiving file from client
             if (msg instanceof FileMessage) {
                 FileMessage fm = (FileMessage) msg;
-                Files.write(Paths.get("server_storage/" + fm.getFilename()), fm.getData(), StandardOpenOption.CREATE);
-                // обновление содержимого сервера на клиенте
+                Files.write(
+                        Paths.get(
+                                "server_storage/" + fm.getFilename()),
+                        fm.getData(),
+                        StandardOpenOption.CREATE);
+                // Send list of client files to client
                 FileListMessage flm = new FileListMessage(getFilesList());
                 ctx.writeAndFlush(flm);
             }
 
+            // Remove file from server by client request
+            if (msg instanceof FileDeleteRequest) {
+                FileDeleteRequest fdr = (FileDeleteRequest) msg;
+                if (Files.exists(
+                        Paths.get("server_storage/" + fdr.getFilename()))) {
+                    Files.delete(
+                            Paths.get("server_storage/" + fdr.getFilename()));
+                    // Send list of client files to client
+                    FileListMessage flm = new FileListMessage(getFilesList());
+                    ctx.writeAndFlush(flm);
+                }
+            }
         } finally {
             ReferenceCountUtil.release(msg);
         }
     }
 
+    /**
+     * Method channelReadComplete.
+     *
+     * @param ctx ChannelHandlerContext
+     */
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+    public void channelReadComplete(final ChannelHandlerContext ctx) {
         ctx.flush();
     }
 
+    /**
+     * Method exceptionCaught.
+     *
+     * @param ctx   ChannelHandlerContext
+     * @param cause Throwable
+     */
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+    public void exceptionCaught(final ChannelHandlerContext ctx,
+                                final Throwable cause) {
         ctx.close();
     }
 
-    public List<String> getFilesList() {
+    /**
+     * Method getFileList().
+     * Uses for generating client file names array, stored on server-side.
+     *
+     * @return files
+     */
+    private List<String> getFilesList() {
         List<String> files = new ArrayList<>();
         try {
-            Files.newDirectoryStream(Paths.get("server_storage/")).forEach(path -> files.add(path.getFileName().toString()));
+            Files.newDirectoryStream(
+                    Paths.get("server_storage/")).forEach(
+                    path -> files.add(path.getFileName().toString()));
         } catch (IOException e) {
             e.printStackTrace();
         }

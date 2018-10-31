@@ -1,4 +1,4 @@
 /**
- * Package 'common' contain additional classes for client and server.
+ * Package 'client' contain classes client-side.
  */
-package com.geekbrains.cloudstorage.common;
+package com.geekbrains.cloudstorage.client;
